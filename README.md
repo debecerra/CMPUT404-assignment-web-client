@@ -10,6 +10,10 @@ Make a simple web-client like curl or wget
 Contributors / Licensing
 ========================
 
+This project is licensed under the Apache 2 license by Diego Becerra.
+
+The repo was forked from the CMPUT 404 web client assignment repository, owned by Abram Hindle and licensed under the Apache 2 license.
+
 Generally everything is LICENSE'D under the Apache 2 license by Abram Hindle, 
 https://github.com/tywtyw2002, and https://github.com/treedust
 
