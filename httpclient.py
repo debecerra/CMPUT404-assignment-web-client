@@ -152,9 +152,13 @@ class HTTPClient(object):
         url = self.parse_url(url)
         self.connect(url.host, url.port)
 
-        route = url.path
         if args is not None:
-            url.query = self.encode_args(args)
+            if url.query == "":
+                url.query = self.encode_args(args)
+            else:
+                url.query += "&" + self.encode_args(args)
+
+        route = url.path
         if url.query != "":
             route = f"{url.path}?{url.query}"
         
