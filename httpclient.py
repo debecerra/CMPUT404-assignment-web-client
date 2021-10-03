@@ -25,7 +25,7 @@ import re
 # you may use urllib to encode data appropriately
 import urllib.parse
 
-DEBUG = True
+DEBUG = False
 
 HTTP_VERSION = "HTTP/1.1"
 CRLF = "\r\n"
@@ -77,7 +77,7 @@ class HTTPResponse(object):
         self.body = body
 
     def __str__(self) -> str:
-        return f"Status Code:{self.code}\nBody:{self.body}"
+        return f"HTTPResponse Object:\n---Status Code---\n{self.code}\n---Body---\n{self.body}"
 
 
 class HTTPClient(object):
@@ -123,7 +123,7 @@ class HTTPClient(object):
                 done = not part
         return buffer.decode('utf-8')
 
-    def parseUrl(self, url):
+    def parse_url(self, url):
         # Python Software Foundation, "URL Parsing"
         # 2021-09-05, https://docs.python.org/3.6/library/urllib.parse.html#url-parsing
         # PSF License Agreement and the Zero-Clause BSD license
@@ -131,16 +131,35 @@ class HTTPClient(object):
         (scheme, netloc, path, params, query, fragment) = url_components
         host, port = url_components.hostname, url_components.port
 
-        #host = socket.gethostbyname("slashdot.org")
+        # Python Software Foundation, "URL Quoting"
+        # 2021-09-05, https://docs.python.org/3/library/urllib.parse.html#url-quoting
+        # PSF License Agreement and the Zero-Clause BSD license
+        path = "/" if path == "" else urllib.parse.quote(path)
+        
+        host = socket.gethostbyname(host)
         port = 80 if port is None else port
 
         return URL(scheme, netloc, path, params, query, fragment, host, port)
 
+    def encode_args(self, args: dict):
+        # Python Software Foundation, "URL Quoting"
+        # 2021-09-05, https://docs.python.org/3/library/urllib.parse.html#url-quoting
+        # PSF License Agreement and the Zero-Clause BSD license
+        terms = [f"{urllib.parse.quote_plus(key)}={urllib.parse.quote_plus(value)}" for key, value in args.items()]
+        return "&".join(terms)
+
     def GET(self, url, args=None):
-        url = self.parseUrl(url)
+        url = self.parse_url(url)
         self.connect(url.host, url.port)
 
-        request = HTTPRequest("GET", url.path, {"Host": url.netloc})
+        route = url.path
+        if args is not None:
+            url.query = self.encode_args(args)
+        if url.query != "":
+            route = f"{url.path}?{url.query}"
+        
+
+        request = HTTPRequest("GET", route, {"Host": url.netloc})
         self.sendall(str(request))
         self.socket.shutdown(socket.SHUT_WR)
         log("Sending request...", request)
@@ -149,11 +168,40 @@ class HTTPClient(object):
         self.close()
         log("Receiving response...", data)
 
-        return HTTPResponse(self.get_code(data), self.get_body(data))
+        code = self.get_code(data)
+        body = self.get_body(data)
+        return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        code = 500
-        body = ""
+        url = self.parse_url(url)
+        self.connect(url.host, url.port)
+
+        if args is None:
+            body = ""
+            headers = {
+                "Host": url.netloc,
+                "Content-Type": "text/plain",
+                "Content-Length": 0
+            }
+        else:
+            body = self.encode_args(args)
+            headers = {
+                "Host": url.netloc,
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Content-Length": len(body.encode('utf-8'))
+            }
+
+        request = HTTPRequest("POST", url.path, headers, body)
+        self.sendall(str(request))
+        self.socket.shutdown(socket.SHUT_WR)
+        log("Sending request...", request)
+
+        data = self.recvall(self.socket)
+        self.close()
+        log("Receiving response...", data)
+
+        code = self.get_code(data)
+        body = self.get_body(data)
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):

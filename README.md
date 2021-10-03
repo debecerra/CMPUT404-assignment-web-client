@@ -22,3 +22,7 @@ examples thus some of the code is Copyright © 2001-2013 Python
 Software Foundation; All Rights Reserved under the PSF license (GPL
 compatible) http://docs.python.org/2/library/socketserver.html
 
+References
+========================
+- Python Software Foundation, "URL Parsing," 2021-09-05, https://docs.python.org/3.6/library/urllib.parse.html#url-parsing, PSF License Agreement and the Zero-Clause BSD license
+- Python Software Foundation, "URL Quoting," 2021-09-05, https://docs.python.org/3/library/urllib.parse.html#url-quoting, PSF License Agreement and the Zero-Clause BSD license
