@@ -25,14 +25,31 @@ import re
 # you may use urllib to encode data appropriately
 import urllib.parse
 
+DEBUG = True
+
 HTTP_VERSION = "HTTP/1.1"
+CRLF = "\r\n"
 
 
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
 
-    def __str__(self) -> str:
-        return f"Status Code:{self.code}\nBody:{self.body}"
+
+def log(*msg, sep="\n"):
+    if (DEBUG):
+        print(*msg, sep=sep)
+
+
+class URL(object):
+    def __init__(self, scheme, netloc, path, params, query, fragment, host, port):
+        self.scheme = scheme
+        self.netloc = netloc
+        self.path = path
+        self.params = params
+        self.query = query
+        self.fragment = fragment
+        self.host = host
+        self.port = port
 
 
 class HTTPRequest(object):
@@ -42,13 +59,13 @@ class HTTPRequest(object):
         self.headers = headers
         self.body = body
 
-        self.headers["Host"] = "27.0.0.1:27606"
-        #self.headers["User-Agent"] = "curl/7.74.0"
-        #self.headers["Accept"] = "*/*"
+        self.headers["User-Agent"] = "Knockoff curl/7.74.0"
 
     def __str__(self) -> str:
         request_line = f"{self.method} {self.route} {HTTP_VERSION}\r\n"
-        headers = "" if len(self.headers) == 0 else "\r\n".join([f"{key}: {value}" for key, value in self.headers.items()]) + "\r\n"
+        headers = "" if len(self.headers) == 0 else "\r\n".join(
+            [f"{key}: {value}" for key, value in self.headers.items()]
+        ) + "\r\n"
         body = "\r\n" + self.body
         message = request_line + headers + body
         return message
@@ -59,8 +76,12 @@ class HTTPResponse(object):
         self.code = code
         self.body = body
 
+    def __str__(self) -> str:
+        return f"Status Code:{self.code}\nBody:{self.body}"
+
+
 class HTTPClient(object):
-    #def get_host_port(self,url):
+    # def get_host_port(self,url):
 
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -68,17 +89,25 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return None
+        status_line_end = data.find(CRLF)
+        status_line = data[:status_line_end]
+        (version, code, reason) = status_line.split(" ", 2)
+        return int(code)
 
-    def get_headers(self,data):
-        return None
+    def get_headers(self, data):
+        status_line_end = data.find(CRLF)
+        headers_end = data.find(CRLF*2)
+        headers = data[status_line_end + len(CRLF):headers_end]
+        return headers
 
     def get_body(self, data):
-        return None
-    
+        headers_end = data.find(CRLF*2)
+        body = data[headers_end + 2*len(CRLF):]
+        return body
+
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
-        
+
     def close(self):
         self.socket.close()
 
@@ -94,29 +123,33 @@ class HTTPClient(object):
                 done = not part
         return buffer.decode('utf-8')
 
-    def GET(self, url, args=None):
-        code = 500
-        body = ""
+    def parseUrl(self, url):
+        # Python Software Foundation, "URL Parsing"
+        # 2021-09-05, https://docs.python.org/3.6/library/urllib.parse.html#url-parsing
+        # PSF License Agreement and the Zero-Clause BSD license
+        url_components = urllib.parse.urlparse(url)
+        (scheme, netloc, path, params, query, fragment) = url_components
+        host, port = url_components.hostname, url_components.port
 
         #host = socket.gethostbyname("slashdot.org")
-        #port = 80
-        host = "127.0.0.1"
-        port = 27606
+        port = 80 if port is None else port
 
-        self.connect(host, port)
-        request = str(HTTPRequest("GET", "/dsadsadsadsa"))
-        print("---------------------")
-        print(request)
+        return URL(scheme, netloc, path, params, query, fragment, host, port)
 
-        self.sendall(request)
+    def GET(self, url, args=None):
+        url = self.parseUrl(url)
+        self.connect(url.host, url.port)
+
+        request = HTTPRequest("GET", url.path, {"Host": url.netloc})
+        self.sendall(str(request))
         self.socket.shutdown(socket.SHUT_WR)
-        
-        response = self.recvall(self.socket)
-        self.close()
-        print("---------------------")
-        print(response)
+        log("Sending request...", request)
 
-        return HTTPResponse(code, body)
+        data = self.recvall(self.socket)
+        self.close()
+        log("Receiving response...", data)
+
+        return HTTPResponse(self.get_code(data), self.get_body(data))
 
     def POST(self, url, args=None):
         code = 500
@@ -125,10 +158,11 @@ class HTTPClient(object):
 
     def command(self, url, command="GET", args=None):
         if (command == "POST"):
-            return self.POST( url, args )
+            return self.POST(url, args)
         else:
-            return self.GET( url, args )
-    
+            return self.GET(url, args)
+
+
 if __name__ == "__main__":
     client = HTTPClient()
     command = "GET"
@@ -136,6 +170,6 @@ if __name__ == "__main__":
         help()
         sys.exit(1)
     elif (len(sys.argv) == 3):
-        print(client.command( sys.argv[2], sys.argv[1] ))
+        print(client.command(sys.argv[2], sys.argv[1]))
     else:
-        print(client.command( sys.argv[1] ))
+        print(client.command(sys.argv[1]))
