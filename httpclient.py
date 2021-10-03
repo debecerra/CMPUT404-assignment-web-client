@@ -2,13 +2,13 @@
 # coding: utf-8
 # Copyright 2016 Abram Hindle, https://github.com/tywtyw2002, and https://github.com/treedust
 # Modifications copyright 2021 Diego Becerra
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,8 +25,34 @@ import re
 # you may use urllib to encode data appropriately
 import urllib.parse
 
+HTTP_VERSION = "HTTP/1.1"
+
+
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
+
+    def __str__(self) -> str:
+        return f"Status Code:{self.code}\nBody:{self.body}"
+
+
+class HTTPRequest(object):
+    def __init__(self, method="GET", route="/", headers={}, body=""):
+        self.method = method
+        self.route = route
+        self.headers = headers
+        self.body = body
+
+        self.headers["Host"] = "27.0.0.1:27606"
+        #self.headers["User-Agent"] = "curl/7.74.0"
+        #self.headers["Accept"] = "*/*"
+
+    def __str__(self) -> str:
+        request_line = f"{self.method} {self.route} {HTTP_VERSION}\r\n"
+        headers = "" if len(self.headers) == 0 else "\r\n".join([f"{key}: {value}" for key, value in self.headers.items()]) + "\r\n"
+        body = "\r\n" + self.body
+        message = request_line + headers + body
+        return message
+
 
 class HTTPResponse(object):
     def __init__(self, code=200, body=""):
@@ -71,6 +97,25 @@ class HTTPClient(object):
     def GET(self, url, args=None):
         code = 500
         body = ""
+
+        #host = socket.gethostbyname("slashdot.org")
+        #port = 80
+        host = "127.0.0.1"
+        port = 27606
+
+        self.connect(host, port)
+        request = str(HTTPRequest("GET", "/dsadsadsadsa"))
+        print("---------------------")
+        print(request)
+
+        self.sendall(request)
+        self.socket.shutdown(socket.SHUT_WR)
+        
+        response = self.recvall(self.socket)
+        self.close()
+        print("---------------------")
+        print(response)
+
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
